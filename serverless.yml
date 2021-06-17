@@ -1,0 +1,133 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: customer-mgmt-api
+
+frameworkVersion: '2'
+
+custom:
+  customerTableName: 'customer'
+  orderTableName: 'order'
+  productTableName: 'product'
+
+provider:
+  name: aws
+  runtime: java8
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-2'}
+  lambdaHashingVersion: 20201221
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+             - "dynamodb:*"
+          Resource:
+            - { "Fn::GetAtt": ["CustomerTable", "Arn" ] }
+            - { "Fn::GetAtt": ["OrderTable", "Arn" ] }
+            - { "Fn::GetAtt": ["ProductTable", "Arn" ] }
+  environment:
+    CUSTOMER_TABLE: ${self:custom.customerTableName}
+    ORDER_TABLE: ${self:custom.orderTableName}
+    PRODUCT_TABLE: ${self:custom.productTableName}
+
+package:
+  artifact: 'target/${self:service}-${self:provider.stage}.jar'
+
+functions:
+  saveCustomer:
+    handler: com.serverless.handler.customer.CreateCustomerHandler
+    events:
+      - http:
+          path: /customer
+          method: post
+  saveOrdersByCustId:
+    handler: com.serverless.handler.order.CreateOrderHandler
+    events:
+      - http:
+          path: /customer/{custId}/orders
+          method: post
+  customersList:
+    handler: com.serverless.handler.order.ListCustomersHandler
+    events:
+      - http:
+          path: /customersList
+          method: get
+  fetchOrdersByCustomer:
+    handler: com.serverless.handler.customer.GetCustomerHandler
+    events:
+      - http:
+          path: /customer/{custId}/orders
+          method: get
+  fetchOrderByCustId:
+    handler: com.serverless.handler.order.GetOrderHandler
+    events:
+      - http:
+          path: /customer/{custId}/order/{orderId}
+          method: get
+  deleteOrderByCustId:
+    handler: com.serverless.handler.order.DeleteOrderHandler
+    events:
+      - http:
+          path: /customer/{custId}/order/{orderId}
+          method: delete
+
+resources:
+   Resources:
+    CustomerTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.customerTableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    OrderTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.orderTableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: custId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: custId
+            KeyType: HASH
+          - AttributeName: id
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    ProductTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.productTableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: orderId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: orderId
+            KeyType: HASH
+          - AttributeName: id
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
